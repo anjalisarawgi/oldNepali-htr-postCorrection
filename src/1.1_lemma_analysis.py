@@ -1,5 +1,8 @@
 import pandas as pd
 from collections import defaultdict
+import pandas as pd
+import pickle
+from rapidfuzz.distance import Levenshtein
 
 df = pd.read_csv("results/lemma_matches.csv")
 
@@ -24,15 +27,15 @@ print("Proportion of lines with matches:", round(df["has_lemma_pred"].mean(), 3)
 print(f"GT coverage (mean):   {df['gt_coverage'].mean():.3f}")
 print(f"PRED coverage (mean): {df['pred_coverage'].mean():.3f}")
 
-# weighted coverage
-df["gt_len"] = df["ground_truth"].astype(str).str.len()
-df["pred_len"] = df["prediction"].astype(str).str.len()
-total_gt_chars = df["gt_len"].sum()
-total_pred_chars = df["pred_len"].sum()
-weighted_gt_cov = (df["gt_coverage"] * df["gt_len"]).sum() / total_gt_chars
-weighted_pred_cov = (df["pred_coverage"] * df["pred_len"]).sum() / total_pred_chars
-print(f"GT weighted coverage   : {weighted_gt_cov:.3f}")
-print(f"Pred weighted coverage : {weighted_pred_cov:.3f}")
+# # weighted coverage
+# df["gt_len"] = df["ground_truth"].astype(str).str.len()
+# df["pred_len"] = df["prediction"].astype(str).str.len()
+# total_gt_chars = df["gt_len"].sum()
+# total_pred_chars = df["pred_len"].sum()
+# weighted_gt_cov = (df["gt_coverage"] * df["gt_len"]).sum() / total_gt_chars
+# weighted_pred_cov = (df["pred_coverage"] * df["pred_len"]).sum() / total_pred_chars
+# print(f"GT weighted coverage   : {weighted_gt_cov:.3f}")
+# print(f"Pred weighted coverage : {weighted_pred_cov:.3f}")
 
 #### check precision by lemma length
 def length_bin(n):
@@ -42,7 +45,7 @@ def length_bin(n):
         return "4–5"
     elif n <= 8:
         return "6–8"
-    else:
+    elif n >= 9:
         return "9+"
 
 def split_words(x):
@@ -71,9 +74,6 @@ for b in ("2-3", "4–5", "6–8", "9+"):
     print(f"{b:<8} {c:>8} {t:>8} {p:>10.3f}")
 
 # checking error rate / cer 
-import pandas as pd
-import pickle
-from rapidfuzz.distance import Levenshtein
 from utils.trie_dict import TrieNode
 def analyze_error_localization(csv_path, trie_path, min_len=4, max_len=30):
     def greedy_match_line(trie_root, text):

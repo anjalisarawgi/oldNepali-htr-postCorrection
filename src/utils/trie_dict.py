@@ -45,7 +45,7 @@ if __name__ == "__main__":
     WORD_COL = "word_norm"
 
     trie = build_dictionary_trie( csv_path=DICT_CSV, word_col=WORD_COL, min_len=2)
-    with open("dictionary_trie.pkl", "wb") as f:
+    with open("trie/dictionary_trie.pkl", "wb") as f:
         pickle.dump(trie, f)
 
-    print("Trie saved to: dictionary_trie.pkl")
+    print("Trie saved to: trie/dictionary_trie.pkl")

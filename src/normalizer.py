@@ -15,7 +15,7 @@ _PATTERNS = {
     "removed_invis_chars": re.compile(r"[\u00AD\u200B\u200C\u200D]"),
     "bullet_to_dot": re.compile(r"[·•‧∙]"),
     "removed_single_quotes": re.compile(r"[`'‘’]"),
-    "removed_whitespace": re.compile(r"\s+", re.UNICODE),
+    # "removed_whitespace": re.compile(r"\s+", re.UNICODE),
     "noisy_char": re.compile(r"[\u0300\u0301]") ,
     "normalize_dashes": re.compile(r"[–—−]")
 }
@@ -37,7 +37,7 @@ def normalize_text(s, counter, line_counter):
             "bullet_to_dot": ".",
             "removed_single_quotes": "",
             "removed_invis_chars": "",
-            "removed_whitespace": "", 
+            # "removed_whitespace": "", 
             "noisy_char": "", 
             "normalize_dashes": "-"
         }[key], s)
@@ -72,9 +72,9 @@ def normalize_text(s, counter, line_counter):
     
     # s = re.sub(r'\s{2,}', ' ', s)
     new_s, n = re.subn(r'\s{2,}', ' ', s)
-    if n > 0:
-        counter["normalized_whitespace"] += n
-        line_counter["normalized_whitespace"] += 1
+    # if n > 0:
+    #     counter["normalized_whitespace"] += n
+    #     line_counter["normalized_whitespace"] += 1
     s = new_s
 
     s = HYPHEN_COLLAPSE.sub("-", s)

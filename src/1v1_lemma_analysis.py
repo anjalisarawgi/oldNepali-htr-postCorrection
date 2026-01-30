@@ -1,8 +1,9 @@
 import pandas as pd
 from collections import defaultdict
 import pandas as pd
-import pickle
+import dill as pickle
 from rapidfuzz.distance import Levenshtein
+from src.utils.trie_lemma import TrieNode
 
 df = pd.read_csv("results/lemma_matches.csv")
 
@@ -74,7 +75,7 @@ for b in ("2-3", "4–5", "6–8", "9+"):
     print(f"{b:<8} {c:>8} {t:>8} {p:>10.3f}")
 
 # checking error rate / cer 
-from utils.trie_dict import TrieNode
+
 def analyze_error_localization(csv_path, trie_path, min_len=4, max_len=30):
     def greedy_match_line(trie_root, text):
         i = 0
@@ -165,3 +166,22 @@ analyze_error_localization(
     min_len=3,
     max_len=30
 )
+
+# Calculate character lengths
+df["gt_len"] = df["ground_truth"].astype(str).str.len()
+df["pred_len"] = df["prediction"].astype(str).str.len()
+
+# Corpus-level total characters
+total_gt_chars = df["gt_len"].sum()
+total_pred_chars = df["pred_len"].sum()
+
+# Corpus-level matched characters (from previously computed coverage)
+total_matched_gt_chars = (df["gt_coverage"] * df["gt_len"]).sum()
+total_matched_pred_chars = (df["pred_coverage"] * df["pred_len"]).sum()
+
+# Corpus-level coverage
+corpus_gt_coverage = total_matched_gt_chars / total_gt_chars
+corpus_pred_coverage = total_matched_pred_chars / total_pred_chars
+
+print(f"GT coverage (corpus-level):   {corpus_gt_coverage:.3f}")
+print(f"PRED coverage (corpus-level): {corpus_pred_coverage:.3f}")

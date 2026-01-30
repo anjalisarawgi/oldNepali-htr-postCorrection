@@ -1,6 +1,6 @@
 import torch
-from utils.trie_lemma import TrieNode
-from utils.trie_dict import TrieNode
+# from utils.trie_lemma import TrieNode
+from src.utils.trie_lemma import TrieNode
 import regex as re
 import pandas as pd
 from tqdm import tqdm
@@ -83,10 +83,10 @@ def greedy_matches_with_lemmas(trie, text, min_len=4, max_len=30):
     return matches, surfaces, lemmas, coverage
 
 def analyze_row(trie, gt, pred, min_len=4, max_len=30):
-    _, gt_words, gt_lemmas, gt_cov = greedy_matches_with_lemmas(
+    gt_matches, gt_words, gt_lemmas, gt_cov = greedy_matches_with_lemmas(
         trie, gt, min_len, max_len
     )
-    _, pr_words, pr_lemmas, pr_cov = greedy_matches_with_lemmas(
+    pr_matches, pr_words, pr_lemmas, pr_cov = greedy_matches_with_lemmas(
         trie, pred, min_len, max_len
     )
 
@@ -102,6 +102,10 @@ def analyze_row(trie, gt, pred, min_len=4, max_len=30):
 
     lost_lemmas = sorted(list(gt_lemma_set - pr_lemma_set))
     gained_lemmas = sorted(list(pr_lemma_set - gt_lemma_set))
+
+    def spans_to_str(spans):
+        return "|".join(f"{s}-{e}" for s, e in spans)
+
 
     return {
         # EXISTING (unchanged)
@@ -120,6 +124,9 @@ def analyze_row(trie, gt, pred, min_len=4, max_len=30):
         "gained_lemmas": "|".join(gained_lemmas), # lemmas in pred but not in gt  
         "lost_words": "|".join(lost_words), # words in gt but not in pred
         "gained_words": "|".join(gained_words),    # words in pred but not in gt
+
+        "gt_spans": spans_to_str(gt_matches),
+        "pred_spans": spans_to_str(pr_matches),
 
     }
 

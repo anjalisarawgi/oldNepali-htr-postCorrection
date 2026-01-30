@@ -6,7 +6,7 @@ import regex as re
 from rapidfuzz.distance import Levenshtein
 
 
-min_length = 2
+min_length = 4
 df = pd.read_csv("results/lemma_matches.csv")
 
 # Get total character counts
@@ -53,6 +53,7 @@ print(f"Total edit distance: {total_edit_distance}")
 print(f"Total GT characters: {total_gt_chars}")
 print(f"CER                : {cer_overall:.4f}")
 
+# handles devanagari graphemes
 def get_graphemes(text):
     return re.findall(r'\X', text)
 

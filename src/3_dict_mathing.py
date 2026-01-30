@@ -2,7 +2,10 @@ import pandas as pd
 import pickle
 import regex as re
 from tqdm import tqdm
-from utils.trie_dict import TrieNode
+from src.utils.trie_dict import TrieNode
+from rapidfuzz.distance import Levenshtein
+from collections import defaultdict
+
 
 def get_graphemes(text):
     return re.findall(r'\X', text)
@@ -59,11 +62,6 @@ def greedy_match_line(trie_root, text, min_len=4, max_len=30, exclude_spans=[]):
     return matches
 
 def find_dict_matches_on_unmatched_parts(csv_path, dict_trie_path, output_csv, min_len=4, max_len=30):
-    import pandas as pd
-    import pickle
-    import regex as re
-    from tqdm import tqdm
-    from utils.trie_dict import TrieNode
 
     def get_graphemes(text):
         return re.findall(r'\X', text)
@@ -184,50 +182,11 @@ find_dict_matches_on_unmatched_parts(
     max_len=30
 )
 
-from collections import defaultdict
-#### check precision by lemma length
-def length_bin(n):
-    if n<=3:
-        return "2-3"
-    if n <= 5:
-        return "4–5"
-    elif n <= 8:
-        return "6–8"
-    elif n >= 9:
-        return "9+"
-
-def split_words(x):
-    return x.split("|") if pd.notna(x) and x else []
-
-stats = defaultdict(lambda: {"correct": 0, "total": 0})
-df = pd.read_csv("results/lemma_matches_with_dict_matches.csv")
-for _, row in df.iterrows():
-    dict_matches_gt = set(split_words(row.get("dict_matches_gt", "")))
-    dict_matches_pred = split_words(row.get("dict_matches_pred", ""))
-    
-
-    for lemma in dict_matches_pred:
-        b = length_bin(len(lemma))
-        stats[b]["total"] += 1
-        if lemma in dict_matches_gt:
-            stats[b]["correct"] += 1
-            
-print("P(correct | dictionary match length)")
-print(f"{'Length bin':<8} {'Correct':>8} {'Total':>8} {'Precision':>10}")
-print("-" * 40)
-
-for b in ("2-3", "4–5", "6–8", "9+"):
-    c = stats[b]["correct"]
-    t = stats[b]["total"]
-    p = c / t if t > 0 else 0.0
-    print(f"{b:<8} {c:>8} {t:>8} {p:>10.3f}")
 
 
 
 
 # checking error rate / cer 
-from utils.trie_dict import TrieNode
-from rapidfuzz.distance import Levenshtein
 def analyze_error_localization(csv_path, trie_path, min_len=4, max_len=30):
     def greedy_match_line(trie_root, text):
         i = 0
@@ -299,22 +258,14 @@ def analyze_error_localization(csv_path, trie_path, min_len=4, max_len=30):
 
     total_errors = matched_errors + unmatched_errors
 
-    print("\n=== ERROR LOCALIZATION ===")
-    print(f"Matched ops (dict span) : {matched_ops}")
-    print(f"Matched errors          : {matched_errors}")
-    print(f"Error rate in dict span : {matched_errors / matched_ops:.4f}" if matched_ops else "N/A")
-    print()
-    print(f"Unmatched ops (outside) : {unmatched_ops}")
-    print(f"Unmatched errors        : {unmatched_errors}")
-    print(f"Error rate outside span : {unmatched_errors / unmatched_ops:.4f}" if unmatched_ops else "N/A")
-    print()
-    print("Error distribution:")
-    print(f"  Inside dict spans  : {matched_errors} ({matched_errors / total_errors:.2%})")
-    print(f"  Outside dict spans : {unmatched_errors} ({unmatched_errors / total_errors:.2%})")
+    print(f"Matched characters : {matched_ops}")
+    print(f"Unmatched characters : {unmatched_ops}")
+    print(f"Total errors      : {total_errors}")
+    print(f"Total errors in matched: {matched_errors}")
+    print(f"Total errors in unmatched: {unmatched_errors}")
+    # print(f"Error rate in matched : {matched_errors / matched_ops:.4f}")
+    # print(f"Error rate in unmatched : {unmatched_errors / unmatched_ops:.4f}")
 
-analyze_error_localization(
-    csv_path="results/lemma_matches_with_dict_matches.csv",
-    trie_path="trie/dictionary_trie.pkl",
-    min_len=4,
-    max_len=30
-)
+    print("Matched error rate  : ", matched_errors / total_errors)
+    print("Unmatched error rate: ", unmatched_errors / total_errors)
+analyze_error_localization( csv_path="results/lemma_matches_with_dict_matches.csv", trie_path="trie/dictionary_trie.pkl", min_len=5, max_len=30)

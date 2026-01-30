@@ -178,7 +178,7 @@ find_dict_matches_on_unmatched_parts(
     csv_path="results/lemma_matches.csv",
     dict_trie_path="trie/dictionary_trie.pkl",
     output_csv="results/lemma_matches_with_dict_matches.csv",
-    min_len=3,
+    min_len=5,
     max_len=30
 )
 
@@ -186,86 +186,89 @@ find_dict_matches_on_unmatched_parts(
 
 
 
-# checking error rate / cer 
-def analyze_error_localization(csv_path, trie_path, min_len=4, max_len=30):
-    def greedy_match_line(trie_root, text):
-        i = 0
-        matches = []
-        while i < len(text):
-            node = trie_root
-            longest = None
-            for j in range(i, min(len(text), i + max_len)):
-                ch = text[j]
-                if ch not in node.children:
-                    break
-                node = node.children[ch]
-                if node.entries and (j + 1 - i) >= min_len:
-                    longest = (i, j + 1)
-            if longest:
-                matches.append(longest)
-                i = longest[1]
-            else:
-                i += 1
-        return matches
+# analysis
+df = pd.read_csv("results/lemma_matches_with_dict_matches.csv") # importing the saved csv file from the same code above
+with open("trie/dictionary_trie.pkl", "rb") as f:
+    trie = pickle.load(f)
 
-    def char_mask(length, spans):
-        mask = [False] * length
-        for s, e in spans:
-            for i in range(s, e):
-                if i < length:
-                    mask[i] = True
-        return mask
+min_len = 5
+max_len = 30
 
-    df = pd.read_csv(csv_path)
-    with open(trie_path, "rb") as f:
-        trie = pickle.load(f)
+def greedy_match_line(trie_root, text):
+    i = 0
+    matches = []
+    while i < len(text):
+        node = trie_root
+        longest = None
+        for j in range(i, min(len(text), i + max_len)):
+            ch = text[j]
+            if ch not in node.children:
+                break
+            node = node.children[ch]
+            if node.entries and (j + 1 - i) >= min_len:
+                longest = (i, j + 1)
+        if longest:
+            matches.append(longest)
+            i = longest[1]
+        else:
+            i += 1
+    return matches
 
-    matched_ops = matched_errors = unmatched_ops = unmatched_errors = 0
+def char_mask(length, spans):
+    mask = [False] * length
+    for s, e in spans:
+        for i in range(s, e):
+            if i < length:
+                mask[i] = True
+    return mask
 
-    for _, row in df.iterrows():
-        gt = str(row.get("ground_truth", ""))
-        pred = str(row.get("prediction", ""))
 
-        spans = greedy_match_line(trie, pred)
-        mask = char_mask(len(pred), spans)
+matched_ops = matched_errors = unmatched_ops = unmatched_errors = 0
 
-        ops = Levenshtein.editops(gt, pred)
-        pred_error_idx = set()
-        delete_errors = {}
+for _, row in df.iterrows():
+    gt = str(row.get("ground_truth", ""))
+    pred = str(row.get("prediction", ""))
 
-        for tag, src, dest in ops:
-            if tag in ("replace", "insert") and 0 <= dest < len(pred):
-                pred_error_idx.add(dest)
-            elif tag == "delete":
-                delete_errors[dest] = delete_errors.get(dest, 0) + 1
+    spans = greedy_match_line(trie, pred)
+    mask = char_mask(len(pred), spans)
 
-        for j in range(len(pred)):
-            if mask[j]:
-                matched_ops += 1
-                if j in pred_error_idx:
-                    matched_errors += 1
-            else:
-                unmatched_ops += 1
-                if j in pred_error_idx:
-                    unmatched_errors += 1
+    ops = Levenshtein.editops(gt, pred)
+    pred_error_idx = set()
+    delete_errors = {}
 
-        for dest, count in delete_errors.items():
-            j = min(dest, len(pred) - 1) if pred else 0
-            if mask[j]:
-                matched_errors += count
-            else:
-                unmatched_errors += count
+    for tag, src, dest in ops:
+        if tag in ("replace", "insert") and 0 <= dest < len(pred):
+            pred_error_idx.add(dest)
+        elif tag == "delete":
+            delete_errors[dest] = delete_errors.get(dest, 0) + 1
 
-    total_errors = matched_errors + unmatched_errors
+    for j in range(len(pred)):
+        if mask[j]:
+            matched_ops += 1
+            if j in pred_error_idx:
+                matched_errors += 1
+        else:
+            unmatched_ops += 1
+            if j in pred_error_idx:
+                unmatched_errors += 1
 
-    print(f"Matched characters : {matched_ops}")
-    print(f"Unmatched characters : {unmatched_ops}")
-    print(f"Total errors      : {total_errors}")
-    print(f"Total errors in matched: {matched_errors}")
-    print(f"Total errors in unmatched: {unmatched_errors}")
-    # print(f"Error rate in matched : {matched_errors / matched_ops:.4f}")
-    # print(f"Error rate in unmatched : {unmatched_errors / unmatched_ops:.4f}")
+    for dest, count in delete_errors.items():
+        j = min(dest, len(pred) - 1) if pred else 0
+        if mask[j]:
+            matched_errors += count
+        else:
+            unmatched_errors += count
 
-    print("Matched error rate  : ", matched_errors / total_errors)
-    print("Unmatched error rate: ", unmatched_errors / total_errors)
-analyze_error_localization( csv_path="results/lemma_matches_with_dict_matches.csv", trie_path="trie/dictionary_trie.pkl", min_len=5, max_len=30)
+total_errors = matched_errors + unmatched_errors
+
+print(f"Matched characters : {matched_ops}")
+print(f"Unmatched characters : {unmatched_ops}")
+print(f"Total errors      : {total_errors}")
+print(f"Total errors in matched: {matched_errors}")
+print(f"Total errors in unmatched: {unmatched_errors}")
+# print(f"Error rate in matched : {matched_errors / matched_ops:.4f}")
+# print(f"Error rate in unmatched : {unmatched_errors / unmatched_ops:.4f}")
+
+print("Matched error rate  : ", matched_errors / total_errors)
+print("Unmatched error rate: ", unmatched_errors / total_errors)
+

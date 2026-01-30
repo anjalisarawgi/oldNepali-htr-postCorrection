@@ -125,47 +125,47 @@ def normalize_dictionary_csv(
 
 
 def main():
-    # INPUT_CSV = "data/predictions_with_logits.csv"
-    # OUTPUT_CSV = "data/predictions_with_logits_normalized.csv"
+    INPUT_CSV = "data/predictions/predictions.csv"
+    OUTPUT_CSV = "data/predictions/predictions_normalized.csv"
 
-    # df = pd.read_csv(INPUT_CSV)
+    df = pd.read_csv(INPUT_CSV)
 
-    # counter = defaultdict(int)
-    # line_counter = defaultdict(int)
+    counter = defaultdict(int)
+    line_counter = defaultdict(int)
 
-    # # normalize columns
-    # df["ground_truth_norm"] = df["ground_truth"].apply(
-    #     lambda x: normalize_text(str(x), counter, line_counter)
-    # )
+    # normalize columns
+    df["ground_truth"] = df["ground_truth"].apply(
+        lambda x: normalize_text(str(x), counter, line_counter)
+    )
 
-    # df["prediction_norm"] = df["prediction"].apply(
-    #     lambda x: normalize_text(str(x), counter, line_counter)
-    # )
+    df["prediction"] = df["prediction"].apply(
+        lambda x: normalize_text(str(x), counter, line_counter)
+    )
 
-    # # recompute CER on normalized text
-    # df["cer_norm"] = df.apply(
-    #     lambda r: char_error_rate(
-    #         [r["prediction_norm"]],
-    #         [r["ground_truth_norm"]],
-    #     ).item(),
-    #     axis=1
-    # )
+    # recompute CER on normalized text
+    df["cer_norm"] = df.apply(
+        lambda r: char_error_rate(
+            [r["prediction"]],
+            [r["ground_truth"]],
+        ).item(),
+        axis=1
+    )
 
-    # df.to_csv(OUTPUT_CSV, index=False)
+    df.to_csv(OUTPUT_CSV, index=False)
 
-    # print("Saved:", OUTPUT_CSV)
-    # for k in sorted(counter):
-    #     print(f"{k:30s}: {counter[k]}")
+    print("Saved:", OUTPUT_CSV)
+    for k in sorted(counter):
+        print(f"{k:30s}: {counter[k]}")
 
     # normalize_lemmas_csv(
     #     input_csv="data/lemmas.csv",
     #     output_csv="data/lemmas_normalized.csv"
     # )
 
-    normalize_dictionary_csv(
-        input_csv="data/nepali-brihat-sabdakosh-processed.csv",
-        output_csv="data/nepali-brihat-sabdakosh-processed-normalized.csv"
-    )
+    # normalize_dictionary_csv(
+    #     input_csv="data/nepali-brihat-sabdakosh-processed.csv",
+    #     output_csv="data/nepali-brihat-sabdakosh-processed-normalized.csv"
+    # )
 
 
 

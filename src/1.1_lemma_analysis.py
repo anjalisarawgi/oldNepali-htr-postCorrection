@@ -162,6 +162,6 @@ def analyze_error_localization(csv_path, trie_path, min_len=4, max_len=30):
 analyze_error_localization(
     csv_path="results/lemma_matches.csv",
     trie_path="trie/lemma_trie.pkl",
-    min_len=4,
+    min_len=3,
     max_len=30
 )

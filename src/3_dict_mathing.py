@@ -170,7 +170,6 @@ def find_dict_matches_on_unmatched_parts(csv_path, dict_trie_path, output_csv, m
     df.to_csv(output_csv, index=False)
     print("Saved:", output_csv)
 
-    print("\n=== Dictionary Coverage (on unmatched parts) ===")
     print(f"GT coverage   (mean): {sum(dict_cov_gt)/len(dict_cov_gt):.3f}")
     print(f"PRED coverage (mean): {sum(dict_cov_pred)/len(dict_cov_pred):.3f}")
 
@@ -178,7 +177,7 @@ find_dict_matches_on_unmatched_parts(
     csv_path="results/lemma_matches.csv",
     dict_trie_path="trie/dictionary_trie.pkl",
     output_csv="results/lemma_matches_with_dict_matches.csv",
-    min_len=5,
+    min_len=3,
     max_len=30
 )
 
@@ -191,8 +190,23 @@ df = pd.read_csv("results/lemma_matches_with_dict_matches.csv") # importing the 
 with open("trie/dictionary_trie.pkl", "rb") as f:
     trie = pickle.load(f)
 
-min_len = 5
+min_len = 3
 max_len = 30
+def spans_from_word_list(text, words_str):
+    if not isinstance(words_str, str):
+        return []
+    spans = []
+    for w in words_str.split("|"):
+        if not w:
+            continue
+        start = 0
+        while True:
+            idx = text.find(w, start)
+            if idx == -1:
+                break
+            spans.append((idx, idx + len(w)))
+            start = idx + len(w)
+    return spans
 
 def greedy_match_line(trie_root, text):
     i = 0
@@ -229,8 +243,16 @@ for _, row in df.iterrows():
     gt = str(row.get("ground_truth", ""))
     pred = str(row.get("prediction", ""))
 
-    spans = greedy_match_line(trie, pred)
-    mask = char_mask(len(pred), spans)
+    lemma_spans = spans_from_word_list(pred, row["pred_words"])
+    lemma_mask = char_mask(len(pred), lemma_spans)
+    
+    dict_spans = spans_from_word_list(pred, row["dict_matches_pred"])
+    dict_mask = char_mask(len(pred), dict_spans)
+
+    dict_only_mask = [
+        d and not l
+        for d, l in zip(dict_mask, lemma_mask)
+    ]
 
     ops = Levenshtein.editops(gt, pred)
     pred_error_idx = set()
@@ -243,20 +265,21 @@ for _, row in df.iterrows():
             delete_errors[dest] = delete_errors.get(dest, 0) + 1
 
     for j in range(len(pred)):
-        if mask[j]:
+        if dict_only_mask[j]:
             matched_ops += 1
             if j in pred_error_idx:
                 matched_errors += 1
-        else:
+        elif not lemma_mask[j]:
             unmatched_ops += 1
             if j in pred_error_idx:
                 unmatched_errors += 1
 
+
     for dest, count in delete_errors.items():
         j = min(dest, len(pred) - 1) if pred else 0
-        if mask[j]:
+        if dict_only_mask[j]:
             matched_errors += count
-        else:
+        elif not lemma_mask[j]:
             unmatched_errors += count
 
 total_errors = matched_errors + unmatched_errors

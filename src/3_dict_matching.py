@@ -295,3 +295,86 @@ print(f"Total errors in unmatched: {unmatched_errors}")
 print("Matched error rate  : ", matched_errors / total_errors)
 print("Unmatched error rate: ", unmatched_errors / total_errors)
 
+###########################################
+# saving unmatched_errors to a file for later analysis
+def add_spaces_around_spans(text, spans):
+    """
+    Wrap matched spans with spaces, without losing characters.
+    """
+    spans = sorted(spans)
+    out = []
+    last = 0
+    for s, e in spans:
+        out.append(text[last:s])
+        out.append(" ")
+        out.append(text[s:e])
+        out.append(" ")
+        last = e
+    out.append(text[last:])
+    return "".join(out)
+
+
+def remove_spans_with_separator(text, spans, sep=" "):
+    """
+    Remove spans but insert a separator at each removal site
+    so surrounding text chunks never merge.
+    """
+    if not spans:
+        return text
+
+    spans = sorted(spans)
+    out = []
+    last = 0
+
+    for s, e in spans:
+        # left context
+        out.append(text[last:s])
+
+        # separator (avoid stacking many)
+        if out and not out[-1].endswith(sep):
+            out.append(sep)
+
+        last = e
+
+    # tail
+    out.append(text[last:])
+
+    return "".join(out)
+
+
+SEP = "--"   # or " - "
+
+gt_unmatched = []
+pred_unmatched = []
+
+for _, row in df.iterrows():
+    gt = str(row.get("ground_truth", ""))
+    pred = str(row.get("prediction", ""))
+
+    # --- GT spans ---
+    gt_spans = (
+        spans_from_word_list(gt, row.get("gt_words", "")) +
+        spans_from_word_list(gt, row.get("dict_matches_gt", ""))
+    )
+
+    # --- PRED spans ---
+    pred_spans = (
+        spans_from_word_list(pred, row.get("pred_words", "")) +
+        spans_from_word_list(pred, row.get("dict_matches_pred", ""))
+    )
+
+    gt_unmatched.append(
+        remove_spans_with_separator(gt, gt_spans, sep=SEP)
+    )
+    pred_unmatched.append(
+        remove_spans_with_separator(pred, pred_spans, sep=SEP)
+    )
+
+
+df["gt_unmatched_text"] = gt_unmatched
+df["pred_unmatched_text"] = pred_unmatched
+
+df.to_csv(
+    "results/lemma_matches_with_dict_matches_unmatched.csv",
+    index=False
+)

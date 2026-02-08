@@ -1,92 +1,4 @@
-# import ast
-# import pandas as pd
-
-# INPUT_CSV = "data/predictions/predictions_with_logits_normalized.csv"
-# OUTPUT_CSV = "flagged_predictions_relprob.csv"
-
-# REL_THRESH = 0.035   # prob2 / prob1 threshold
-# EPS = 1e-12
-
-
-# def compute_rel_prob_p2_p1(top3_probs):
-#     """
-#     top3_probs: list of [p1, p2, p3]
-#     returns: list of p2 / p1
-#     """
-#     rel = []
-#     for probs in top3_probs:
-#         p1 = probs[0]
-#         p2 = probs[1]
-#         rel.append(p2 / (p1 + EPS))
-#     return rel
-
-
-# def is_flagged(rel, ent):
-
-#     return rel > REL_THRESH
-
-
-# ########################################
-# # Load
-# ########################################
-
-# df = pd.read_csv(INPUT_CSV)
-
-# ########################################
-# # Process row-by-row
-# ########################################
-
-# rows = []
-# total_tokens = 0
-# flagged_tokens_count = 0
-# rows_with_flags = 0
-
-# for _, row in df.iterrows():
-#     pred_tokens = ast.literal_eval(row["pred_tokens"])
-#     entropies = ast.literal_eval(row["entropies"])
-#     top3_probs = ast.literal_eval(row["top3_probs"])
-
-#     rel_probs = compute_rel_prob_p2_p1(top3_probs)
-
-#     flagged_tokens = []
-#     flagged_indices = []
-#     flagged_rel_probs = []
-
-#     for i, (tok, rel, ent) in enumerate(
-#         zip(pred_tokens, rel_probs, entropies)
-#     ):
-#         if is_flagged(rel, ent):
-#             flagged_tokens.append(tok)
-#             flagged_indices.append(i)
-#             flagged_rel_probs.append(rel)
-
-#     rows.append({
-#         "image_path": row["image_path"],
-#         "ground_truth": row["ground_truth"],
-#         "prediction": row["prediction"],
-#         "flagged_tokens": flagged_tokens,
-#         "flagged_token_indices": flagged_indices,
-#         "flagged_rel_prob_p2_p1": flagged_rel_probs,
-#     })
-#     total_tokens += len(pred_tokens)
-
-#     if flagged_tokens:
-#         rows_with_flags += 1
-#         flagged_tokens_count += len(flagged_tokens)
-
-# out_df = pd.DataFrame(rows)
-# out_df.to_csv(OUTPUT_CSV, index=False)
-
-# print("Saved:", OUTPUT_CSV)
-# print("\n===== FLAGGING SUMMARY =====")
-# print(f"Total rows               : {len(df)}")
-# print(f"Rows with ≥1 flagged tok : {rows_with_flags}")
-# print(f"Total tokens             : {total_tokens}")
-# print(f"Flagged tokens           : {flagged_tokens_count}")
-# print(
-#     "Flagged token ratio      : "
-#     f"{flagged_tokens_count / total_tokens:.4f}"
-# )
+from operator import is_
 import pandas as pd
 import ast
 import numpy as np
@@ -96,7 +8,7 @@ from difflib import SequenceMatcher
 import math
 from collections import Counter
 
-CSV_PATH = "data/predictions/predictions_with_logits_normalized.csv"
+CSV_PATH = "data/predictions/predictions_with_calibrated_probs.csv"
 
 df = pd.read_csv(CSV_PATH, converters={
     "pred_tokens": ast.literal_eval,
@@ -106,11 +18,11 @@ df = pd.read_csv(CSV_PATH, converters={
     "top3_ids": ast.literal_eval,
     "top3_probs": ast.literal_eval,
     "entropies": ast.literal_eval, 
-
+    "pred_token_probs_cal": ast.literal_eval,
 })
 
 
-def pick_errors(prediction_tokens, groundtruth_tokens, prediction_tokens_ids, groundtruth_tokens_ids, top3_ids, top3_probs, entropies, row ):
+def pick_errors(prediction_tokens, groundtruth_tokens, prediction_tokens_ids, groundtruth_tokens_ids, top3_ids, top3_probs, entropies, pred_token_probs_cal, row):
     aligned = []
     m = SequenceMatcher(None, groundtruth_tokens, prediction_tokens)
 
@@ -123,6 +35,9 @@ def pick_errors(prediction_tokens, groundtruth_tokens, prediction_tokens_ids, gr
         top3_probs_j = top3_probs[j] if j < len(top3_probs) else []
         p1, p2, p3 = (top3_probs_j + [0, 0, 0])[:3]
         entropy_j = entropies[j] if j < len(entropies) else 0.0
+        cal_p1 = pred_token_probs_cal[j] if j < len(pred_token_probs_cal) else 0.0
+        cal_p2 = 0.0
+        cal_p3 = 0.0
 
         aligned.append({
             "match_type": tag,
@@ -138,7 +53,8 @@ def pick_errors(prediction_tokens, groundtruth_tokens, prediction_tokens_ids, gr
             "row_index": row.name, 
             "entropy": entropy_j,
             "top3_ids": top3_ids_j, 
-            "relative_prob": p2 / p1 if p1 > 0 else np.nan
+            "relative_prob": p2 / p1 if p1 > 0 else np.nan,
+            "relative_prob_cal": cal_p1
         })
 
     for tag, i1, i2, j1, j2 in m.get_opcodes():
@@ -185,6 +101,7 @@ def apply_error_picking(row):
         row["top3_ids"],
         row["top3_probs"],
         row["entropies"],   
+        row["pred_token_probs_cal"],
         row
     )
 
@@ -233,7 +150,7 @@ def precision_and_recall(data, metric, num_thresholds=30):
 
     return pd.DataFrame(rows)
 
-rel_prob_table = precision_and_recall(token_df, "relative_prob", num_thresholds=30)
+rel_prob_table = precision_and_recall(token_df, "relative_prob_cal", num_thresholds=30)
 entropy_table = precision_and_recall(token_df, "entropy",num_thresholds=30)
 
 # print("Relative Probability based precision and recall:")
@@ -250,7 +167,7 @@ plt.ylabel('Precision')
 plt.title('Precision-Recall Curve')
 plt.legend()
 plt.grid()
-plt.savefig("results/precision_recall_curve.png")
+plt.savefig("plots/precision_recall_curve_cal.png")
 
 
 # f1 score
@@ -314,7 +231,7 @@ print(best_entropy_row)
 ########################################################################
 metrics = {
     "entropy": 0.108058,
-    "relative_prob": 0.034480,
+    "relative_prob": 0.027079,
 }
 
 incorrect_mask = token_df["gt_token_id"] != token_df["pred_token_id"]
@@ -367,3 +284,5 @@ print(f"Top recoverable confusions saved to results/recoverable_confusions.csv")
 print(confusion_df.head(10))
 
 
+###########################
+# calibration

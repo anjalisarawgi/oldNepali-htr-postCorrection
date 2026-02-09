@@ -166,10 +166,10 @@ def add_ngram_matches_and_coverage(
 ########################################
 
 
-output_csv = "results/lemma_matches_with_dict_matches_unmatched_ngram_matches_coverage.csv"
+output_csv = "results/lemma_matches_with_dict_matches_unmatched_ngram_matches_with_logits.csv"
 
 add_ngram_matches_and_coverage(
-    input_csv="results/lemma_matches_with_dict_matches_unmatched.csv",
+    input_csv="results/lemma_matches_with_dict_matches_unmatched_with_logits.csv",
     trie_path="trie/ngram_trie.pkl",
     output_csv=output_csv,
     max_n=3

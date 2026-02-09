@@ -174,9 +174,9 @@ def find_dict_matches_on_unmatched_parts(csv_path, dict_trie_path, output_csv, m
     print(f"PRED coverage (mean): {sum(dict_cov_pred)/len(dict_cov_pred):.3f}")
 
 find_dict_matches_on_unmatched_parts(
-    csv_path="results/lemma_matches.csv",
+    csv_path="results/lemma_matches_with_logits.csv",
     dict_trie_path="trie/dictionary_trie.pkl",
-    output_csv="results/lemma_matches_with_dict_matches.csv",
+    output_csv="results/lemma_matches_with_dict_matches_with_logits.csv",
     min_len=3,
     max_len=30
 )
@@ -186,7 +186,7 @@ find_dict_matches_on_unmatched_parts(
 
 
 # analysis
-df = pd.read_csv("results/lemma_matches_with_dict_matches.csv") # importing the saved csv file from the same code above
+df = pd.read_csv("results/lemma_matches_with_dict_matches_with_logits.csv") # importing the saved csv file from the same code above
 with open("trie/dictionary_trie.pkl", "rb") as f:
     trie = pickle.load(f)
 
@@ -375,6 +375,6 @@ df["gt_unmatched_text"] = gt_unmatched
 df["pred_unmatched_text"] = pred_unmatched
 
 df.to_csv(
-    "results/lemma_matches_with_dict_matches_unmatched.csv",
+    "results/lemma_matches_with_dict_matches_unmatched_with_logits.csv",
     index=False
 )

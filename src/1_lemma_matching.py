@@ -156,5 +156,5 @@ def run_analysis(input_csv, trie_path, output_csv,min_len, max_len):
 
 
 if __name__ == "__main__":
-    INPUT_CSV = "data/predictions/predictions_normalized.csv" 
-    run_analysis( input_csv=INPUT_CSV, trie_path="trie/lemma_trie.pkl", output_csv="results/lemma_matches.csv", min_len=3, max_len=30)
+    INPUT_CSV = "data/predictions/predictions_with_logits_normalized.csv" 
+    run_analysis( input_csv=INPUT_CSV, trie_path="trie/lemma_trie.pkl", output_csv="results/lemma_matches_with_logits.csv", min_len=3, max_len=30)

@@ -7,7 +7,7 @@ from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 from scipy.optimize import minimize
 
-CSV_PATH = "data/predictions/predictions_with_logits_normalized.csv"
+CSV_PATH = "results/lemma_matches_with_dict_matches_unmatched_ngram_matches_with_logits.csv"
 OUT_DIR  = "plots/calibration"
 SEED = 0
 N_BINS = 15
@@ -17,9 +17,6 @@ np.random.seed(SEED)
 def parse(x):
     return ast.literal_eval(x) if isinstance(x, str) else []
 
-# ======================================================
-# LOAD + FLATTEN TOKENS
-# ======================================================
 df = pd.read_csv(CSV_PATH)
 
 rows = []
@@ -41,9 +38,6 @@ for line_i, row in df.iterrows():
 
 tok = pd.DataFrame(rows)
 
-# ======================================================
-# SPLIT BY LINE (NO LEAKAGE)
-# ======================================================
 lines = tok["line"].unique()
 np.random.shuffle(lines)
 
@@ -178,3 +172,28 @@ print("Saved:")
 print("- per-method reliability PNGs")
 print("- unified calibrated token CSV")
 
+
+# ======================================================
+# SAVE BETA CALIBRATION BACK TO ORIGINAL CSV
+# ======================================================
+
+# attach beta-calibrated probs to token table
+tok["cal_prob_beta"] = methods["beta"]
+
+# regroup per line, preserving token order
+beta_per_line = (
+    tok.sort_values(["line"])
+       .groupby("line")["cal_prob_beta"]
+       .apply(list)
+)
+
+# load original CSV again
+df_out = pd.read_csv(CSV_PATH)
+
+# insert new column (lists serialized like existing cols)
+df_out["cal_prob_beta"] = df_out.index.map(
+    lambda i: beta_per_line[i] if i in beta_per_line else []
+)
+OUTPUT_CSV = CSV_PATH.replace(".csv", "_with_beta_cal.csv")
+df_out.to_csv(OUTPUT_CSV, index=False)
+print("beta-calibrated probabilities written back as cal_prob_beta")

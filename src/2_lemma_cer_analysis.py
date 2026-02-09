@@ -105,7 +105,7 @@ def analyze_inside_outside_cer(df, trie, min_len=min_length, max_len=30):
 # load trie and results
 with open("trie/lemma_trie.pkl", "rb") as f:
     trie = pickle.load(f)
-df = pd.read_csv("results/lemma_matches.csv")
+df = pd.read_csv("results/lemma_matches_with_logits.csv")
 
 analyze_inside_outside_cer(df, trie, min_len=min_length, max_len=30)
 
